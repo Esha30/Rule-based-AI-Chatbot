@@ -1,0 +1,11 @@
+Flask==3.0.0
+flask-cors==4.0.0
+pymongo==4.6.1
+nltk==3.8.1
+python-dotenv==1.0.0
+thefuzz==0.22.1
+python-Levenshtein==0.25.1
+pytest==8.2.0
+google-generativeai==0.5.2
+googletrans-py==4.0.0
+langdetect==1.0.9

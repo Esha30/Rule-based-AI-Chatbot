@@ -1,0 +1,16 @@
+# Node
+node_modules/
+frontend/.next/
+frontend/out/
+build/
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+backend/venv/
+backend/.env
+backend/logs/*.log
+
+# Docker
+.dockerignore

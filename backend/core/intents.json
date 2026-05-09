@@ -1,0 +1,96 @@
+{
+  "intents": [
+    {
+      "tag": "greeting",
+      "patterns": ["hi", "hello", "hey", "hola", "hy", "sup", "howdy", "greetings", "good morning", "good evening"],
+      "responses": [
+        "Hello! I'm **Axiom AI**, your intelligent rule-based assistant. How can I help you today?",
+        "Hi there! Axiom AI is online and ready to assist. What's on your mind?",
+        "Hey! Welcome to Axiom AI. Ask me anything!"
+      ]
+    },
+    {
+      "tag": "identity",
+      "patterns": ["name", "who are you", "what are you", "what is your name", "tell me about yourself"],
+      "responses": [
+        "I'm **Axiom AI** — a rule-based conversational engine built on NLP, Flask, and MongoDB. My name comes from the word *axiom*, meaning a fundamental truth or rule.",
+        "You're talking to **Axiom AI**, a professional chatbot designed to demonstrate how rule-based logic powers modern conversational systems."
+      ]
+    },
+    {
+      "tag": "status",
+      "patterns": ["how are you", "how are you doing", "what's up", "are you ok", "you good"],
+      "responses": [
+        "I'm operating at full capacity! All systems are nominal. How can Axiom AI assist you?",
+        "Everything's running perfectly on my end. What can I help you with today?"
+      ]
+    },
+    {
+      "tag": "weather",
+      "patterns": ["weather", "temperature", "forecast", "rain", "sunny"],
+      "responses": [
+        "I don't have real-time weather data, but I hope it's a great day wherever you are!",
+        "I'm not connected to a live weather service, but feel free to ask me other things!"
+      ]
+    },
+    {
+      "tag": "help",
+      "patterns": ["help", "support", "assist", "what can i ask", "guide me"],
+      "responses": [
+        "I can answer questions, tell you about my capabilities, and recall our conversation history. What do you need?",
+        "I'm here to help! Try asking me who I am, what I can do, or just have a casual conversation."
+      ]
+    },
+    {
+      "tag": "capabilities",
+      "patterns": ["what can you do", "features", "skills", "capabilities", "abilities"],
+      "responses": [
+        "Axiom AI can: understand natural language intent, maintain session-based conversation history via MongoDB, support dark/light mode, export chats, and use voice input. All powered by a Flask backend!",
+        "My core features include NLP intent recognition, conversation logging, voice input, chat export, and a beautiful session history sidebar."
+      ]
+    },
+    {
+      "tag": "creator",
+      "patterns": ["who made you", "who created you", "developer", "who built you", "who designed you"],
+      "responses": [
+        "Axiom AI was crafted by a passionate developer as part of the **DecodeLabs** AI training program.",
+        "I was built using Python, Flask, Next.js, and MongoDB — a full-stack AI project by a DecodeLabs intern."
+      ]
+    },
+    {
+      "tag": "joke",
+      "patterns": ["tell me a joke", "joke", "make me laugh", "something funny", "humor me"],
+      "responses": [
+        "Why did the AI go to school? Because it wanted to improve its *neural* network! 😄",
+        "Why don't robots ever get lost? Because they always follow their *rules*! 🤖",
+        "I told a rule-based joke once. The punchline was *predictable* — just like me! 😂"
+      ]
+    },
+    {
+      "tag": "goodbye",
+      "patterns": ["bye", "goodbye", "exit", "see ya", "quit", "later", "see you"],
+      "responses": [
+        "Goodbye! Come back anytime — Axiom AI is always here. 👋",
+        "See you later! It was a pleasure chatting with you. 👋",
+        "Take care! Axiom AI will be right here when you need me. 🤖"
+      ]
+    },
+    {
+      "tag": "thanks",
+      "patterns": ["thanks", "thank you", "thx", "appreciate it", "cheers"],
+      "responses": [
+        "You're welcome! That's what Axiom AI is here for. 😊",
+        "Happy to help! Is there anything else I can do for you?",
+        "Anytime! Feel free to ask me more questions."
+      ]
+    },
+    {
+      "tag": "rules",
+      "patterns": ["how do rules work", "rule-based", "how do you think", "how do you work", "logic"],
+      "responses": [
+        "Axiom AI uses **rule-based NLP** — I match your input against predefined patterns using intent recognition and fuzzy matching. If no rule matches, I fall back to a general response.",
+        "Great question! Unlike ML models, I follow *programmed rules*. Your message is analyzed, matched to an intent, and I return the best matching response. Simple, transparent, and powerful!"
+      ]
+    }
+  ]
+}
