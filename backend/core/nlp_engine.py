@@ -70,11 +70,13 @@ class NLPEngine:
             try:
                 logger.info(f"FALLING BACK TO GEMINI for: '{user_message}'")
                 prompt = (
-                    "You are Axiom AI, a professional assistant. Respond to this query concisely: " + user_message
+                    "You are Axiom AI. Respond to this query concisely: " + user_message
                 )
                 response = self.model.generate_content(prompt)
+                # Prepend the transparency message
+                final_text = "I don't have this much data in my core rules, but I will help you using Gemini AI:\n\n" + response.text
                 return {
-                    "text": response.text,
+                    "text": final_text,
                     "source": "gemini"
                 }
             except Exception as e:
