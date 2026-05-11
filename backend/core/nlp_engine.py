@@ -52,7 +52,7 @@ class NLPEngine:
         if not intent_tag:
             choices = list(self.knowledge_base.keys())
             best_match, score = process.extractOne(clean_input, choices)
-            if score > 80: # 80% similarity threshold
+            if score > 90: # 90% similarity threshold (Stricter for better AI fallback)
                 intent_tag = self.knowledge_base[best_match]
                 logger.info(f"FUZZY MATCH FOUND: '{intent_tag}' (Score: {score}) for '{clean_input}'")
         

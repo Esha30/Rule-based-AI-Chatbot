@@ -23,7 +23,7 @@ function TypingEffect({ text, onComplete }) {
       const t = setTimeout(() => {
         setDisplayed((p) => p + text.charAt(i));
         setI((p) => p + 1);
-      }, 12);
+      }, 4);
       return () => clearTimeout(t);
     } else if (onComplete) onComplete();
   }, [i, text, onComplete]);
@@ -343,7 +343,7 @@ export default function Home() {
 
         {/* Chat / Empty state */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-12">
-          <div className="max-w-3xl mx-auto min-h-full flex flex-col">
+          <div className="max-w-4xl mx-auto min-h-full flex flex-col">
             {messages.length === 0 ? (
               /* ── Empty / Welcome ── */
               <div
