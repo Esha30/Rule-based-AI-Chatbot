@@ -14,3 +14,12 @@ backend/logs/*.log
 
 # Docker
 .dockerignore
+
+# Database & History
+backend/database/local_history.json
+*.json.bak
+
+# Secrets
+.env
+.env.local
+.env.*.local

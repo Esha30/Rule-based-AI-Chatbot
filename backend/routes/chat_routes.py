@@ -12,6 +12,15 @@ from utils.logger import logger
 chat_bp = Blueprint('chat', __name__)
 nlp_engine = NLPEngine()
 
+@chat_bp.route("/status", methods=["GET"])
+def system_status():
+    return jsonify({
+        "status": "online",
+        "database": "connected" if MongoDB.available else "local_fallback",
+        "engine": "Axiom NLP v4.2",
+        "patterns_loaded": len(nlp_engine.knowledge_base)
+    }), 200
+
 @chat_bp.route("/chat", methods=["POST"])
 def chat():
     data = request.json

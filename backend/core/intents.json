@@ -43,7 +43,7 @@
     },
     {
       "tag": "capabilities",
-      "patterns": ["what can you do", "features", "skills", "capabilities", "abilities"],
+      "patterns": ["what can you do", "features", "skills", "capabilities", "abilities", "what are your features"],
       "responses": [
         "Axiom AI can: understand natural language intent, maintain session-based conversation history via MongoDB, support dark/light mode, export chats, and use voice input. All powered by a Flask backend!",
         "My core features include NLP intent recognition, conversation logging, voice input, chat export, and a beautiful session history sidebar."

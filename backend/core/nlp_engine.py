@@ -1,149 +1,110 @@
-import nltk
-from nltk.tokenize import word_tokenize
 import json
 import os
 import random
-from thefuzz import fuzz
+from thefuzz import process
 from utils.logger import logger
 import google.generativeai as genai
-from googletrans import Translator
-from langdetect import detect, detect_langs, DetectorFactory
-import sys
-
-# For consistent language detection
-DetectorFactory.seed = 0
-
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
-
-# Download required NLTK data
-nltk.download('punkt', quiet=True)
-nltk.download('punkt_tab', quiet=True)
 
 class NLPEngine:
     def __init__(self):
         # Load intents from intents.json
         intents_path = os.path.join(os.path.dirname(__file__), 'intents.json')
+        self.knowledge_base = {}
         try:
             with open(intents_path, 'r', encoding='utf-8') as f:
-                self.intents = json.load(f)
-            logger.info("Successfully loaded intents.json")
+                data = json.load(f)
+                self.intents_data = data.get('intents', [])
+                
+            # THE PIVOT: BUILDING THE HASH MAP (O(1) Lookup)
+            for intent in self.intents_data:
+                for pattern in intent.get('patterns', []):
+                    clean_pattern = pattern.lower().strip()
+                    self.knowledge_base[clean_pattern] = intent['tag']
+            
+            logger.info(f"Knowledge Base built with {len(self.knowledge_base)} patterns.")
         except Exception as e:
             logger.error(f"Error loading intents.json: {e}")
-            self.intents = {"intents": []}
+            self.intents_data = []
 
-        # Setup Gemini
+        # Setup Gemini AI Hybrid Fallback
         self.use_gemini = False
         if Config.GEMINI_API_KEY and Config.GEMINI_API_KEY != "your_api_key_here":
             try:
                 genai.configure(api_key=Config.GEMINI_API_KEY)
                 self.model = genai.GenerativeModel('gemini-1.5-flash')
                 self.use_gemini = True
-                logger.info("Gemini AI fallback enabled.")
+                logger.info("Gemini AI Hybrid Fallback enabled.")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini AI: {e}")
-        
-        # Setup Translator
-        self.translator = Translator()
 
     def get_response(self, user_message):
-        user_lang = 'en'
-        try:
-            # Common greeting patterns across supported languages
-            en_greetings = {'hi', 'hello', 'hey', 'hy', 'yo', 'sup', 'howdy', 'greetings', 'tell', 'me', 'a', 'joke', 'what', 'is', 'how', 'who', 'where', 'when', 'why', 'can', 'you', 'help'}
-            es_greetings = {'hola', 'como', 'estas', 'buenos', 'dias'}
-            
-            words = user_message.lower().split()
-            
-            # Direct mapping for very short, common greetings
-            if len(words) <= 3:
-                if any(w in en_greetings for w in words):
-                    user_lang = 'en'
-                    logger.info(f"Common English pattern detected.")
-                elif any(w in es_greetings for w in words):
-                    user_lang = 'es'
-                    logger.info(f"Common Spanish pattern detected.")
-                else:
-                    # Only do complex detection if not in common lists
-                    langs = detect_langs(user_message)
-                    top_lang = langs[0]
-                    # Be extremely skeptical of rare languages for short strings
-                    if top_lang.lang in ['cy', 'fi', 'vi'] and top_lang.prob < 0.999:
-                        user_lang = 'en'
-                    elif top_lang.prob > 0.99: # High bar for short strings
-                        user_lang = top_lang.lang
-                    else:
-                        user_lang = 'en'
-            else:
-                # For longer messages, use standard detection
-                langs = detect_langs(user_message)
-                top_lang = langs[0]
-                if top_lang.lang != 'en' and top_lang.prob > 0.90:
-                    user_lang = top_lang.lang
-                else:
-                    user_lang = 'en'
-            
-            logger.info(f"Final detected language: {user_lang}")
-        except Exception as e:
-            logger.error(f"Language detection failed: {e}")
-            user_lang = 'en'
-
-        # If not English, translate to English for processing
-        processing_message = user_message
-        if user_lang != 'en':
-            try:
-                translation = self.translator.translate(user_message, dest='en')
-                processing_message = translation.text
-                logger.info(f"Translated '{user_message}' to '{processing_message}'")
-            except Exception as e:
-                logger.error(f"Translation to English failed: {e}")
-
-        processing_message_lower = processing_message.lower()
+        # PHASE 1: INPUT & SANITIZATION (Advanced Cleaning)
+        import string
+        clean_input = user_message.lower().strip()
+        # Remove all punctuation for maximum matching flexibility
+        clean_input = clean_input.translate(str.maketrans('', '', string.punctuation))
         
-        try:
-            tokens = word_tokenize(processing_message_lower)
-        except LookupError:
-            tokens = processing_message_lower.split()
-            
-        highest_score = 0
-        best_intent = None
-
-        # Check for intent matches using fuzzy matching
-        for intent in self.intents.get('intents', []):
-            for pattern in intent.get('patterns', []):
-                score = fuzz.token_set_ratio(processing_message_lower, pattern.lower())
-                if score > highest_score:
-                    highest_score = score
-                    best_intent = intent
-
-        final_response = ""
-        # If we have a high confidence match
-        if highest_score > 75 and best_intent:
-            logger.info(f"Matched intent '{best_intent['tag']}' with score {highest_score}")
-            final_response = random.choice(best_intent['responses'])
+        # PHASE 2: EXACT MATCHING (O(1) Speed)
+        intent_tag = self.knowledge_base.get(clean_input)
         
-        # Fallback to Gemini if confidence is low
-        elif self.use_gemini:
+        # PHASE 3: FUZZY MATCHING (Industry Standard Typo Tolerance)
+        if not intent_tag:
+            choices = list(self.knowledge_base.keys())
+            best_match, score = process.extractOne(clean_input, choices)
+            if score > 80: # 80% similarity threshold
+                intent_tag = self.knowledge_base[best_match]
+                logger.info(f"FUZZY MATCH FOUND: '{intent_tag}' (Score: {score}) for '{clean_input}'")
+        
+        if intent_tag:
+            logger.info(f"MATCH FOUND: '{intent_tag}' for input '{clean_input}'")
+            for intent in self.intents_data:
+                if intent['tag'] == intent_tag:
+                    return random.choice(intent['responses'])
+        
+        # FALLBACK: HYBRID ARCHITECTURE
+        # If no rule matches, pass to LLM for flexibility
+        if self.use_gemini:
             try:
-                logger.info(f"Low confidence ({highest_score}). Falling back to Gemini AI.")
-                response = self.model.generate_content(
-                    f"You are Nexus AI, a professional conversational assistant. Answer this user query concisely. Respond in the original language if it's not English: {user_message}"
+                logger.info(f"NO RULE MATCH. Passing to LLM (Flexibility Path).")
+                prompt = (
+                    "You are a professional assistant for the Rule-Based AI Chatbot project. "
+                    "A rule match was not found for the user's input. Provide a concise, "
+                    f"helpful response to: {user_message}"
                 )
+                response = self.model.generate_content(prompt)
                 return response.text
             except Exception as e:
-                logger.error(f"Gemini AI generation failed: {e}")
-                final_response = "Sorry, I don't quite understand that."
-        else:
-            final_response = "Sorry, I don't quite understand that. I'm continually learning, but right now I mainly handle greetings, introductions, and basic questions."
-
-        # Translate response back to user's language if necessary
-        if user_lang != 'en' and final_response:
-            try:
-                translated_resp = self.translator.translate(final_response, dest=user_lang)
-                logger.info(f"Translated response back to {user_lang}")
-                return translated_resp.text
-            except Exception as e:
-                logger.error(f"Translation back to {user_lang} failed: {e}")
+                logger.error(f"Gemini Fallback failed: {e}")
         
-        return final_response
+        # THE FINAL FALLBACK
+        return "I am a deterministic rule-based engine and I don't have a programmed response for that yet. How else can I help you?"
+
+    def start_loop(self):
+        """
+        THE HEARTBEAT: THE INFINITE LOOP
+        Runs until the Kill Command is received.
+        """
+        print("--- Axiom AI Logic Engine Online ---")
+        print("Type 'exit' or 'quit' to stop the engine.")
+        
+        while True:
+            try:
+                # 1. INPUT
+                raw_input = input("You: ")
+                
+                # 2. THE KILL COMMAND (EXIT STRATEGY)
+                if raw_input.lower().strip() in ['exit', 'quit', 'bye', 'goodbye']:
+                    print("Axiom AI: Goodbye! (Engine Shutting Down)")
+                    break
+                
+                # 3. PROCESS & OUTPUT
+                response = self.get_response(raw_input)
+                print(f"Axiom AI: {response}")
+                
+            except KeyboardInterrupt:
+                print("\nEngine Interrupted. Shutting down.")
+                break
+            except Exception as e:
+                print(f"Engine Error: {e}")
+
