@@ -7,7 +7,7 @@ import {
   FaRobot, FaUser, FaPaperPlane, FaHistory, FaTrash,
   FaThumbsUp, FaThumbsDown, FaMicrophone, FaDownload,
   FaSun, FaMoon, FaChevronLeft, FaPlus, FaLightbulb,
-  FaMagic, FaCog, FaInfoCircle
+  FaMagic, FaCog, FaInfoCircle, FaShieldAlt, FaBrain, FaCheckCircle
 } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -170,7 +170,14 @@ export default function Home() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await axios.post(`${API_URL}/chat`, { message: text, session_id: sessionId });
-      setMessages((p) => [...p, { role: "bot", text: res.data.response, id: uuidv4(), isNew: true, userQuery: text }]);
+      setMessages((p) => [...p, { 
+        role: "bot", 
+        text: res.data.response, 
+        id: uuidv4(), 
+        isNew: true, 
+        userQuery: text,
+        source: res.data.source 
+      }]);
       fetchSessions();
     } catch {
       setMessages((p) => [...p, { role: "bot", text: "⚠️ Could not reach the server. Please try again.", id: uuidv4(), isNew: true }]);
@@ -352,11 +359,11 @@ export default function Home() {
 
                   <div className="max-w-lg space-y-3">
                     <h1 className="text-4xl font-black tracking-tight leading-tight">
-                      Deterministic <span className="text-gradient">Guardrails.</span>
+                      Hybrid <span className="text-gradient">Intelligence.</span>
                     </h1>
                     <p className={`text-sm leading-relaxed font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                      Project 1: Rule-Based Logic Engine. Built for absolute traceability and safety 
-                      through White Box architecture. No hallucinations—only pure programmatic decision making.
+                      Project 1: The Safety of Rule-Based Logic merged with the Power of Google Gemini AI. 
+                      Axiom provides deterministic answers for known rules and intelligent fallback for everything else.
                     </p>
                   </div>
 
@@ -398,11 +405,16 @@ export default function Home() {
 
                       {/* Bubble */}
                       <div className={`flex flex-col gap-2 max-w-[82%] ${msg.role === "user" ? "items-end" : "items-start"}`}>
-                        <div className={`p-5 rounded-[1.75rem] text-[15px] leading-relaxed ${
+                        <div className={`p-5 rounded-[1.75rem] text-[15px] leading-relaxed relative group ${
                           msg.role === "user"
                             ? "message-bubble-user text-white rounded-tr-none"
                             : `${bot}`
                         }`}>
+                          {msg.role === "bot" && msg.source === "gemini" && (
+                            <div className="absolute -top-3 right-4 px-2 py-0.5 bg-indigo-600 text-[8px] font-black text-white rounded-full flex items-center gap-1 shadow-lg border border-white/20">
+                              <FaBrain size={8} /> AI ASSISTED
+                            </div>
+                          )}
                           {msg.role === "bot"
                             ? msg.isNew
                               ? <TypingEffect text={msg.text} />
@@ -441,7 +453,8 @@ export default function Home() {
                       </div>
                     </motion.div>
                   )}
-                  <div ref={bottomRef} className="h-8" />
+                  <div className="h-10 shrink-0" />
+                  <div ref={bottomRef} />
                 </div>
             )}
           </div>
@@ -543,14 +556,20 @@ export default function Home() {
                 </div>
               </div>
               <div className={`text-sm leading-relaxed space-y-4 mb-8 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                <p>Axiom AI is a high-performance **Rule-Based NLP Engine** built for absolute precision. Unlike generative models that hallucinate, Axiom follows structured logic gates to ensure 100% reliable responses for mission-critical queries.</p>
+                <p>Axiom AI is a **Hybrid Intelligence System** that prioritizes safety and accuracy.</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {['Deterministic Matching', 'Context Preservation', 'MongoDB Persistence', 'Voice Recognition'].map(f => (
-                    <div key={f} className="flex items-center gap-2 p-3 rounded-xl bg-slate-500/5 border border-slate-500/10 text-[11px] font-bold">
-                      <FaMagic className="text-indigo-500 text-[10px]" /> {f}
+                  {[
+                    { l: 'Rules (Safety)', i: <FaShieldAlt /> },
+                    { l: 'Gemini (Depth)', i: <FaBrain /> },
+                    { l: 'Deterministic', i: <FaCheckCircle /> },
+                    { l: 'Context Aware', i: <FaMagic /> }
+                  ].map(f => (
+                    <div key={f.l} className="flex items-center gap-2 p-3 rounded-xl bg-slate-500/5 border border-slate-500/10 text-[11px] font-bold">
+                      <span className="text-indigo-500">{f.i}</span> {f.l}
                     </div>
                   ))}
                 </div>
+                <p className="text-[11px] italic opacity-70 border-l-2 border-indigo-500 pl-4 py-1">When a specific rule isn't found, Axiom intelligently leverages the Google Gemini LLM to provide the most helpful response possible.</p>
               </div>
               <button onClick={() => setShowInfo(false)} className="w-full py-4 rounded-2xl bg-slate-800 text-white font-black text-sm hover:bg-slate-700 transition-all">Understood</button>
             </motion.div>

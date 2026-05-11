@@ -33,13 +33,17 @@ def chat():
     session_id = data.get("session_id", str(uuid.uuid4()))
     
     try:
-        response = nlp_engine.get_response(user_message)
+        result = nlp_engine.get_response(user_message)
+        response_text = result["text"]
+        source = result["source"]
+        
         # Store Chats in MongoDB
-        MongoDB.insert_message(session_id, user_message, response)
+        MongoDB.insert_message(session_id, user_message, response_text)
         
         return jsonify({
-            "response": response,
-            "session_id": session_id
+            "response": response_text,
+            "session_id": session_id,
+            "source": source
         }), 200
     except Exception as e:
         logger.error(f"Error processing chat: {e}")

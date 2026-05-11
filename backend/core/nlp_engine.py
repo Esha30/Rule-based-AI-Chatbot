@@ -60,25 +60,30 @@ class NLPEngine:
             logger.info(f"MATCH FOUND: '{intent_tag}' for input '{clean_input}'")
             for intent in self.intents_data:
                 if intent['tag'] == intent_tag:
-                    return random.choice(intent['responses'])
+                    return {
+                        "text": random.choice(intent['responses']),
+                        "source": "rule"
+                    }
         
-        # FALLBACK: HYBRID ARCHITECTURE
-        # If no rule matches, pass to LLM for flexibility
+        # PHASE 4: HYBRID FALLBACK (Gemini AI)
         if self.use_gemini:
             try:
-                logger.info(f"NO RULE MATCH. Passing to LLM (Flexibility Path).")
+                logger.info(f"FALLING BACK TO GEMINI for: '{user_message}'")
                 prompt = (
-                    "You are a professional assistant for the Rule-Based AI Chatbot project. "
-                    "A rule match was not found for the user's input. Provide a concise, "
-                    f"helpful response to: {user_message}"
+                    "You are Axiom AI, a professional assistant. Respond to this query concisely: " + user_message
                 )
                 response = self.model.generate_content(prompt)
-                return response.text
+                return {
+                    "text": response.text,
+                    "source": "gemini"
+                }
             except Exception as e:
-                logger.error(f"Gemini Fallback failed: {e}")
-        
-        # THE FINAL FALLBACK
-        return "I am a deterministic rule-based engine and I don't have a programmed response for that yet. How else can I help you?"
+                logger.error(f"Gemini AI Fallback failed: {e}")
+
+        return {
+            "text": "I am a deterministic rule-based engine and I don't have a programmed response for that yet. How else can I help you?",
+            "source": "error"
+        }
 
     def start_loop(self):
         """
