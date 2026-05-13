@@ -2,7 +2,7 @@
   "intents": [
     {
       "tag": "greeting",
-      "patterns": ["hi", "hello", "hey", "hola", "hy", "sup", "howdy", "greetings", "good morning", "good evening"],
+      "patterns": ["hi", "hello", "hey", "hola", "hy", "sup", "howdy", "greetings", "good morning", "good evening", "hi there", "is anyone there"],
       "responses": [
         "Hello! I'm **Axiom AI**, your intelligent rule-based assistant. How can I help you today?",
         "Hi there! Axiom AI is online and ready to assist. What's on your mind?",
@@ -11,7 +11,7 @@
     },
     {
       "tag": "identity",
-      "patterns": ["name", "who are you", "what are you", "what is your name", "tell me about yourself"],
+      "patterns": ["name", "who are you", "what are you", "what is your name", "tell me about yourself", "your name"],
       "responses": [
         "I'm **Axiom AI** — a rule-based conversational engine built on NLP, Flask, and MongoDB. My name comes from the word *axiom*, meaning a fundamental truth or rule.",
         "You're talking to **Axiom AI**, a professional chatbot designed to demonstrate how rule-based logic powers modern conversational systems."
@@ -19,23 +19,48 @@
     },
     {
       "tag": "status",
-      "patterns": ["how are you", "how are you doing", "what's up", "are you ok", "you good"],
+      "patterns": ["how are you", "how are you doing", "what's up", "are you ok", "you good", "how's it going"],
       "responses": [
         "I'm operating at full capacity! All systems are nominal. How can Axiom AI assist you?",
         "Everything's running perfectly on my end. What can I help you with today?"
       ]
     },
     {
+      "tag": "feelings",
+      "patterns": ["i am happy", "i feel good", "i am sad", "i am bored", "how do you feel", "are you happy"],
+      "responses": [
+        "As an AI, I don't have feelings, but I'm programmed to be helpful and positive!",
+        "I don't experience emotions, but I'm glad to be interacting with you!",
+        "My goal is to provide accurate responses. Your mood doesn't change my logic, but I hope you're having a great day!"
+      ]
+    },
+    {
+      "tag": "time",
+      "patterns": ["time", "what time is it", "clock", "current time", "tell me the time"],
+      "responses": [
+        "The current time is {time}.",
+        "It's exactly {time} right now."
+      ]
+    },
+    {
+      "tag": "date",
+      "patterns": ["date", "what day is it", "today", "current date", "tell me the date"],
+      "responses": [
+        "Today is {date}.",
+        "The calendar says it's {date}."
+      ]
+    },
+    {
       "tag": "weather",
       "patterns": ["weather", "temperature", "forecast", "rain", "sunny"],
       "responses": [
-        "I don't have real-time weather data, but I hope it's a great day wherever you are!",
-        "I'm not connected to a live weather service, but feel free to ask me other things!"
+        "I don't have real-time weather sensors yet, but I hope the sky is clear for you!",
+        "I'm not connected to a live weather satellite, but it's always sunny in my circuits!"
       ]
     },
     {
       "tag": "help",
-      "patterns": ["help", "support", "assist", "what can i ask", "guide me"],
+      "patterns": ["help", "support", "assist", "what can i ask", "guide me", "i need help"],
       "responses": [
         "I can answer questions, tell you about my capabilities, and recall our conversation history. What do you need?",
         "I'm here to help! Try asking me who I am, what I can do, or just have a casual conversation."
@@ -94,3 +119,4 @@
     }
   ]
 }
+

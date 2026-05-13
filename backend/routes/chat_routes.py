@@ -33,7 +33,7 @@ def chat():
     session_id = data.get("session_id", str(uuid.uuid4()))
     
     try:
-        result = nlp_engine.get_response(user_message)
+        result = nlp_engine.get_response(user_message, session_id=session_id)
         response_text = result["text"]
         source = result["source"]
         

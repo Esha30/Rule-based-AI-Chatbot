@@ -13,6 +13,22 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { v4 as uuidv4 } from "uuid";
 
+// Utility: strip markdown syntax for plain-text export
+const stripMarkdown = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")   // bold
+    .replace(/\*(.+?)\*/g, "$1")       // italic
+    .replace(/`{3}[\s\S]*?`{3}/g, "")  // code blocks
+    .replace(/`(.+?)`/g, "$1")         // inline code
+    .replace(/#{1,6}\s/g, "")          // headings
+    .replace(/!\[.*?\]\(.*?\)/g, "")   // images
+    .replace(/\[(.+?)\]\(.*?\)/g, "$1") // links
+    .replace(/^[>\-\*]\s/gm, "")       // blockquotes & lists
+    .replace(/\n{3,}/g, "\n\n")        // excess newlines
+    .trim();
+};
+
 /* ─────────────────────────  Sub-Components  ───────────────────────── */
 
 function TypingEffect({ text, onComplete }) {
@@ -134,12 +150,50 @@ export default function Home() {
 
   /* ── Actions ── */
   const exportChat = () => {
-    if (!messages.length) return setShowAlert("No messages to export! Start a conversation first.");
-    const body = messages.map((m) => `${m.role === "user" ? "YOU" : "Axiom AI"}: ${m.text}`).join("\n\n");
-    const filename = `Axiom_AI_Chat_${new Date().toISOString().split('T')[0]}.md`;
-    const blob = new Blob([`# Axiom AI Export\nSession: ${sessionId}\nDate: ${new Date().toLocaleString()}\n\n---\n\n${body}`], { type: "text/markdown;charset=utf-8" });
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: filename });
-    a.click(); URL.revokeObjectURL(a.href);
+    if (!messages.length) {
+      setShowAlert("No messages to export! Start a conversation first.");
+      return;
+    }
+    
+    // Build the text content
+    const dateStr = new Date().toLocaleString();
+    let content = `AXIOM AI CHAT EXPORT\n`;
+    content += `Generated: ${dateStr}\n`;
+    content += `Session ID: ${sessionId}\n`;
+    content += `==========================================\n\n`;
+    
+    messages.forEach((m) => {
+      const role = m.role === "user" ? "USER" : "AXIOM AI";
+      const cleanText = stripMarkdown(m.text);
+      content += `[${role}]\n${cleanText}\n\n`;
+    });
+    
+    content += `==========================================\n`;
+    content += `End of Export - ${messages.length} message(s) exported`;
+    
+    // Standard filename without complex characters
+    const filename = `Axiom_Export_${new Date().getTime()}.txt`;
+    
+    // Create blob with BOM for Windows encoding recognition
+    const blob = new Blob(["\ufeff", content], { type: 'text/plain;charset=utf-8' });
+    
+    // Create a temporary link and trigger download
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.style.display = 'none';
+    link.href = url;
+    link.download = filename;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+    
+    setShowAlert("Exported! Check your downloads folder for '" + filename + "'.");
   };
 
   const startListening = () => {
