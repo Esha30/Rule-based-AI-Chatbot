@@ -58,6 +58,11 @@ const SUGGESTED = [
   { icon: "🧠", label: "How do rules work?", sub: "Understand the engine" },
 ];
 
+/* ─────────────────────────  Constants  ────────────────────────── */
+const API_URL = (typeof window !== "undefined" && window.location.hostname !== "localhost")
+  ? (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000")
+  : "http://localhost:5000";
+
 /* ─────────────────────────  Main Component  ───────────────────────── */
 export default function Home() {
   const [messages, setMessages]     = useState([]);
@@ -95,7 +100,6 @@ export default function Home() {
   /* ── API helpers ── */
   const fetchSessions = useCallback(async () => {
     try { 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const r = await axios.get(`${API_URL}/sessions`); 
       setSessions(r.data);
       setDbStatus("connected");
@@ -111,7 +115,6 @@ export default function Home() {
   const loadSession = async (sid) => {
     try {
       setIsLoading(true);
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const r = await axios.get(`${API_URL}/history?session_id=${sid}`);
       setSessionId(sid);
       localStorage.setItem("axiom_sid", sid);
@@ -132,7 +135,6 @@ export default function Home() {
   const confirmDelete = async () => {
     if (!sessionToDelete) return;
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       await axios.delete(`${API_URL}/sessions/${sessionToDelete}`);
       if (sessionId === sessionToDelete) startNewChat(false);
       fetchSessions();
@@ -142,7 +144,6 @@ export default function Home() {
 
   const handleFeedback = async (query, type, idx) => {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       await axios.post(`${API_URL}/feedback`, { message: query, session_id: sessionId, feedback: type });
       setMessages((prev) => { const n = [...prev]; n[idx] = { ...n[idx], feedback: type }; return n; });
     } catch (e) { console.error("Feedback failed", e); }
@@ -222,7 +223,6 @@ export default function Home() {
     setInput("");
     setIsLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await axios.post(`${API_URL}/chat`, { message: text, session_id: sessionId });
       setMessages((p) => [...p, { 
         role: "bot", 

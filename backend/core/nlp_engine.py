@@ -31,24 +31,38 @@ except ImportError:
 
 class NLPEngine:
     def __init__(self):
+        logger.info("Initializing NLPEngine...")
         # Load intents from intents.json
         intents_path = os.path.join(os.path.dirname(__file__), 'intents.json')
         self.knowledge_base = {}
         
         self.lemmatizer = None
         if HAS_NLTK:
+            logger.info("Checking NLTK...")
             try:
                 self.lemmatizer = WordNetLemmatizer()
-            except:
-                pass
+                # Test the lemmatizer to trigger any missing data errors
+                self.lemmatizer.lemmatize("testing")
+            except (LookupError, Exception):
+                try:
+                    logger.info("NLTK wordnet not found. Downloading...")
+                    nltk.download('wordnet', quiet=True)
+                    nltk.download('omw-1.4', quiet=True)
+                    self.lemmatizer = WordNetLemmatizer()
+                except Exception as e:
+                    logger.warning(f"Failed to download NLTK data: {e}")
+                    self.lemmatizer = None
 
         self.translator = None
         if HAS_TRANSLATION:
+            logger.info("Checking Translator...")
             try:
                 self.translator = Translator()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to initialize translator: {e}")
+                self.translator = None
         
+        logger.info("Loading intents...")
         try:
             with open(intents_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -70,13 +84,45 @@ class NLPEngine:
         # Setup Gemini AI Hybrid Fallback
         self.use_gemini = False
         if Config.GEMINI_API_KEY and Config.GEMINI_API_KEY != "your_api_key_here":
+            logger.info("Setting up Gemini...")
             try:
                 genai.configure(api_key=Config.GEMINI_API_KEY)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
-                self.use_gemini = True
-                logger.info("Gemini AI Hybrid Fallback enabled.")
+                
+                # List available models for debugging
+                try:
+                    all_available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    available_models = [m.replace('models/', '') for m in all_available]
+                    logger.info(f"Available Gemini models: {available_models}")
+                except Exception as list_e:
+                    logger.warning(f"Could not list models: {list_e}")
+                    available_models = []
+
+                # Preferred order (Newest first)
+                preferred = [
+                    'gemini-2.5-flash', 
+                    'gemini-2.0-flash', 
+                    'gemini-1.5-flash',
+                    'gemini-flash-latest',
+                    'gemini-pro'
+                ]
+                
+                # Intersect preferred with available to find the best working model
+                models_to_try = [m for m in preferred if m in available_models]
+                # If no preferred models are available, just try any available ones
+                if not models_to_try:
+                    models_to_try = available_models
+
+                for model_name in models_to_try:
+                    try:
+                        self.model = genai.GenerativeModel(model_name)
+                        self.use_gemini = True
+                        logger.info(f"Gemini AI Hybrid Fallback enabled using model: {model_name}")
+                        break
+                    except Exception as model_e:
+                        logger.warning(f"Model {model_name} initialization failed: {model_e}")
             except Exception as e:
-                logger.error(f"Failed to initialize Gemini AI: {e}")
+                logger.error(f"Failed to configure Gemini AI: {e}")
+        logger.info("NLPEngine initialized.")
 
     def _clean_and_lemmatize(self, text):
         """Standardizes text by removing punctuation and lemmatizing words."""
@@ -104,16 +150,21 @@ class NLPEngine:
         return text
 
     def get_response(self, user_message, session_id="default"):
-        # PHASE 0: MULTILINGUAL SUPPORT (Robustness: skip for very short strings)
+        # PHASE 0: MULTILINGUAL SUPPORT (Robustness: skip for very short strings or common English)
         original_lang = "en"
         processed_message = user_message
-        if HAS_TRANSLATION and self.translator and len(user_message.strip()) > 3:
+        
+        # Common English words/greetings to avoid mis-detection
+        common_en = ["hi", "hello", "hey", "how", "what", "who", "where", "why", "help", "thanks", "thank", "bye"]
+        is_common_en = any(user_message.lower().startswith(w) for w in common_en)
+
+        if HAS_TRANSLATION and self.translator and len(user_message.strip()) > 3 and not is_common_en:
             try:
                 original_lang = detect(user_message)
                 if original_lang != "en":
                     translation = self.translator.translate(user_message, dest='en')
                     processed_message = translation.text
-                    logger.info(f"Translated '{user_message}' -> '{processed_message}'")
+                    logger.info(f"Translated '{user_message}' ({original_lang}) -> '{processed_message}'")
             except Exception as e:
                 logger.warning(f"Translation/Detection failed: {e}")
 

@@ -10,7 +10,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download NLTK data during build
-RUN python -m nltk.downloader punkt punkt_tab
+RUN python -m nltk.downloader punkt punkt_tab wordnet omw-1.4
 
 COPY . .
 

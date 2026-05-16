@@ -13,7 +13,7 @@ def nlp():
     return NLPEngine()
 
 def test_greeting(nlp):
-    response = nlp.get_response("hello there")
+    response = nlp.get_response("Hello there")
     assert "Axiom AI" in response["text"]
     assert response["source"] == "rule"
 

@@ -6,6 +6,7 @@ backend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend
 if backend_path not in sys.path:
     sys.path.append(backend_path)
 
+# pyrefly: ignore [missing-import]
 from core.nlp_engine import NLPEngine
 from dotenv import load_dotenv
 
