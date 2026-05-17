@@ -18,7 +18,7 @@ class MongoDB:
     @classmethod
     def connect(cls):
         try:
-            cls.client = MongoClient(Config.MONGODB_URI, serverSelectionTimeoutMS=2000)
+            cls.client = MongoClient(Config.MONGODB_URI, serverSelectionTimeoutMS=2000, socketTimeoutMS=2000, connectTimeoutMS=2000)
             cls.db = cls.client[Config.DB_NAME]
             cls.db.command("ping")
             cls.available = True
@@ -62,6 +62,12 @@ class MongoDB:
                 logger.error(f"Failed to insert into MongoDB: {e}")
         
         # Fallback to local
+        if "_id" not in msg_doc:
+            import uuid
+            msg_doc["_id"] = str(uuid.uuid4())
+        else:
+            msg_doc["_id"] = str(msg_doc["_id"])
+            
         cls._save_local(msg_doc)
         logger.info(f"Message saved to LOCAL FALLBACK for session: {session_id}")
 
@@ -83,7 +89,14 @@ class MongoDB:
             if os.path.exists(cls.LOCAL_STORAGE_PATH):
                 with open(cls.LOCAL_STORAGE_PATH, 'r') as f:
                     history = json.load(f)
-                return [m for m in history if m.get("session_id") == session_id][-limit:]
+                filtered = []
+                import uuid
+                for m in history:
+                    if m.get("session_id") == session_id:
+                        if "_id" not in m:
+                            m["_id"] = str(uuid.uuid4())
+                        filtered.append(m)
+                return filtered[-limit:]
         except Exception as e:
             logger.error(f"Failed to fetch from local storage: {e}")
         return []

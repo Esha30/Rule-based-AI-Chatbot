@@ -4,9 +4,10 @@ import random
 import string
 from datetime import datetime
 try:
-    from thefuzz import process
+    from thefuzz import process, fuzz
 except ImportError:
     process = None
+    fuzz = None
 
 from utils.logger import logger
 import google.generativeai as genai
@@ -150,29 +151,76 @@ class NLPEngine:
         return text
 
     def get_response(self, user_message, session_id="default"):
-        # PHASE 0: MULTILINGUAL SUPPORT (Robustness: skip for very short strings or common English)
+        # PHASE 1: CLEAN AND MATCH RAW MESSAGE (Bypass translation for English inputs and typos)
+        clean_raw = self._clean_and_lemmatize(user_message)
         original_lang = "en"
-        processed_message = user_message
         
-        # Common English words/greetings to avoid mis-detection
-        common_en = ["hi", "hello", "hey", "how", "what", "who", "where", "why", "help", "thanks", "thank", "bye"]
-        is_common_en = any(user_message.lower().startswith(w) for w in common_en)
+        # Check context
+        context = self.session_contexts.get(session_id)
+        
+        # Try to find a direct match in English rules
+        intent_tag = self.knowledge_base.get(clean_raw)
+        if not intent_tag and process and fuzz:
+            choices = list(self.knowledge_base.keys())
+            if choices:
+                best_match, score = process.extractOne(clean_raw, choices, scorer=fuzz.ratio)
+                if score >= 80:
+                    intent_tag = self.knowledge_base[best_match]
+                    logger.info(f"DIRECT FUZZY MATCH: '{intent_tag}' (Score: {score})")
 
-        if HAS_TRANSLATION and self.translator and len(user_message.strip()) > 3 and not is_common_en:
+        # If a rule matches, or if we are in a direct English mood context, handle immediately
+        if intent_tag or (context == "awaiting_mood" and any(w in clean_raw for w in ["good", "great", "fine", "happy", "well", "bad", "sad", "not good", "tired", "unhappy"])):
+            # Handle mood context
+            if context == "awaiting_mood":
+                self.session_contexts[session_id] = None
+                if any(word in clean_raw for word in ["good", "great", "fine", "happy", "well"]):
+                    resp = "That's wonderful to hear! I'm glad you're doing well. How else can Axiom AI help?"
+                else:
+                    resp = "I'm sorry to hear that. I hope things get better soon! I'm here if you want to chat more about other things."
+                return {"text": resp, "source": "rule"}
+            
+            # Handle matched intent
+            for intent in self.intents_data:
+                if intent['tag'] == intent_tag:
+                    response_text = random.choice(intent['responses'])
+                    response_text = self._process_dynamic_placeholders(response_text)
+                    
+                    if intent_tag == "status":
+                        self.session_contexts[session_id] = "awaiting_mood"
+                        response_text += " How are you doing today?"
+                    
+                    return {"text": response_text, "source": "rule"}
+
+        # PHASE 2: LAZY MULTILINGUAL TRANSLATION (Only if no direct English rule matched)
+        processed_message = user_message
+        clean_input = clean_raw
+
+        if HAS_TRANSLATION and self.translator and len(user_message.strip()) > 3:
             try:
-                original_lang = detect(user_message)
-                if original_lang != "en":
-                    translation = self.translator.translate(user_message, dest='en')
-                    processed_message = translation.text
-                    logger.info(f"Translated '{user_message}' ({original_lang}) -> '{processed_message}'")
+                # Common English words/greetings/typo bypass list to avoid langdetect misclassification
+                common_en_words = {
+                    "i", "im", "i'm", "me", "my", "you", "your", "are", "am", "is", "we", "they", "he", "she", "it",
+                    "good", "great", "fine", "happy", "well", "bad", "sad", "tired", "unhappy", "bored",
+                    "hello", "hi", "hey", "hola", "hy", "sup", "howdy", "greetings", "morning", "evening",
+                    "bye", "goodbye", "exit", "quit", "see", "ya", "later", "thanks", "thank", "thx",
+                    "who", "what", "where", "when", "why", "how", "time", "date", "clock", "weather",
+                    "joke", "funny", "laugh", "humor", "creator", "made", "built", "develop", "rule", "rules", "logic",
+                    "help", "support", "assist", "guide", "feature", "features", "skills", "capabilities", "name"
+                }
+                words = set(user_message.lower().translate(str.maketrans('', '', string.punctuation)).split())
+                is_english = bool(words & common_en_words) or len(user_message.strip()) < 12
+                
+                if not is_english:
+                    original_lang = detect(user_message)
+                    if original_lang != "en":
+                        translation = self.translator.translate(user_message, dest='en')
+                        processed_message = translation.text
+                        clean_input = self._clean_and_lemmatize(processed_message)
+                        logger.info(f"Translated '{user_message}' ({original_lang}) -> '{processed_message}'")
             except Exception as e:
                 logger.warning(f"Translation/Detection failed: {e}")
 
-        # PHASE 1: INPUT & SANITIZATION
-        clean_input = self._clean_and_lemmatize(processed_message)
-        
-        # PHASE 2: CONTEXTUAL NESTED LOGIC
-        context = self.session_contexts.get(session_id)
+        # PHASE 3: CONTEXTUAL NESTED LOGIC (For translated or fallback messages)
         if context == "awaiting_mood":
             self.session_contexts[session_id] = None
             if any(word in clean_input for word in ["good", "great", "fine", "happy", "well"]):
@@ -182,23 +230,15 @@ class NLPEngine:
                 resp = "I'm sorry to hear that. I hope things get better soon! I'm here if you want to chat more about other things."
                 return {"text": self._translate_back(resp, original_lang), "source": "rule"}
 
-        # PHASE 3: EXACT MATCHING
+        # PHASE 4: TRANSLATED MATCHING
         intent_tag = self.knowledge_base.get(clean_input)
-        
-        # Robustness Check: If we found a match in our English knowledge base, 
-        # and the input is relatively short, trust that it is English.
-        if intent_tag and original_lang != "en" and len(user_message.strip()) < 30:
-            original_lang = "en"
-            logger.info(f"Language override: Match found in English rules, resetting language to 'en'.")
-
-        # PHASE 4: FUZZY MATCHING
-        if not intent_tag and process:
+        if not intent_tag and process and fuzz:
             choices = list(self.knowledge_base.keys())
             if choices:
-                best_match, score = process.extractOne(clean_input, choices)
-                if score > 80:
+                best_match, score = process.extractOne(clean_input, choices, scorer=fuzz.ratio)
+                if score >= 80:
                     intent_tag = self.knowledge_base[best_match]
-                    logger.info(f"FUZZY MATCH: '{intent_tag}' (Score: {score})")
+                    logger.info(f"TRANSLATED FUZZY MATCH: '{intent_tag}' (Score: {score})")
         
         if intent_tag:
             for intent in self.intents_data:
@@ -208,7 +248,7 @@ class NLPEngine:
                     
                     if intent_tag == "status":
                         self.session_contexts[session_id] = "awaiting_mood"
-                        response_text += " How are *you* doing today?"
+                        response_text += " How are you doing today?"
                     
                     final_resp = self._translate_back(response_text, original_lang)
                     return {"text": final_resp, "source": "rule"}
@@ -221,10 +261,13 @@ class NLPEngine:
                     "Respond to this query concisely and maintain the persona: " + processed_message
                 )
                 response = self.model.generate_content(prompt)
-                final_text = "*(Hybrid Mode: Rule mismatch, using Axiom-Cloud)*\n\n" + response.text
+                final_text = "I apologize, but my current rule-set doesn't cover this specific query. However, I can help you through my Gemini AI core:\n\n" + response.text
                 return {"text": self._translate_back(final_text, original_lang), "source": "gemini"}
             except Exception as e:
                 logger.error(f"Gemini AI Fallback failed: {e}")
+                if "location is not supported" in str(e).lower() or "403" in str(e):
+                    default_resp = "I apologize, but my current rule-set doesn't cover this query. I tried to help through Gemini, but it seems there are regional restrictions affecting the connection. Try asking about my rules, or say 'help' for guidance."
+                    return {"text": self._translate_back(default_resp, original_lang), "source": "error"}
 
         # PHASE 6: DEFAULT RESPONSE
         default_resp = "I apologize, but my current rule-set doesn't cover that specific query. Try asking about my features, the time, or say 'help' for guidance."

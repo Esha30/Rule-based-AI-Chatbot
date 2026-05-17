@@ -46,6 +46,9 @@ def test_contextual_flow(nlp):
     assert resp2["source"] == "rule"
 
 def test_unknown_query(nlp):
+    # Disable Gemini fallback and translation for this test to verify the local rule engine's default error response
+    nlp.use_gemini = False
+    nlp.translator = None
     response = nlp.get_response("asdfghjkl qwertyuiop")
     assert "apologize" in response["text"]
     assert response["source"] == "error"

@@ -31,7 +31,7 @@ const stripMarkdown = (text) => {
 
 /* ─────────────────────────  Sub-Components  ───────────────────────── */
 
-function TypingEffect({ text, onComplete }) {
+function TypingEffect({ text, onComplete, onScroll }) {
   const [displayed, setDisplayed] = useState("");
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -39,10 +39,11 @@ function TypingEffect({ text, onComplete }) {
       const t = setTimeout(() => {
         setDisplayed((p) => p + text.charAt(i));
         setI((p) => p + 1);
+        if (onScroll && (i % 3 === 0)) onScroll();
       }, 4);
       return () => clearTimeout(t);
     } else if (onComplete) onComplete();
-  }, [i, text, onComplete]);
+  }, [i, text, onComplete, onScroll]);
   return (
     <div className="prose dark:prose-invert max-w-none prose-p:leading-relaxed">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayed}</ReactMarkdown>
@@ -79,6 +80,7 @@ export default function Home() {
   const [sessionId, setSessionId]   = useState("");
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [dbStatus, setDbStatus]     = useState("checking");
+  const [isMobile, setIsMobile]     = useState(false);
   const bottomRef = useRef(null);
 
   /* ── Init ── */
@@ -87,7 +89,15 @@ export default function Home() {
     if (!sid) { sid = uuidv4(); localStorage.setItem("axiom_sid", sid); }
     setSessionId(sid);
     if (localStorage.getItem("axiom_theme") === "light") setIsDark(false);
-    if (window.innerWidth < 1024) setSidebarOpen(false);
+    
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -173,10 +183,10 @@ export default function Home() {
     content += `End of Export - ${messages.length} message(s) exported`;
     
     // Standard filename without complex characters
-    const filename = `Axiom_Export_${new Date().getTime()}.txt`;
+    const filename = `Axiom_Export_${new Date().getTime()}.md`;
     
-    // Create blob with BOM for Windows encoding recognition
-    const blob = new Blob(["\ufeff", content], { type: 'text/plain;charset=utf-8' });
+    // Create blob without BOM, as standard markdown
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     
     // Create a temporary link and trigger download
     const url = window.URL.createObjectURL(blob);
@@ -259,7 +269,7 @@ export default function Home() {
         animate={{ 
           width: sidebarOpen ? 290 : 0, 
           opacity: sidebarOpen ? 1 : 0,
-          x: mobileMenuOpen ? 0 : (window.innerWidth < 1024 ? -290 : 0)
+          x: mobileMenuOpen ? 0 : (isMobile ? -290 : 0)
         }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={`fixed lg:relative h-full border-r shrink-0 overflow-hidden flex flex-col z-40 ${sb}`}
@@ -471,7 +481,7 @@ export default function Home() {
                           )}
                           {msg.role === "bot"
                             ? msg.isNew
-                              ? <TypingEffect text={msg.text} />
+                              ? <TypingEffect text={msg.text} onScroll={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })} />
                               : <div className="prose dark:prose-invert max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown></div>
                             : <span className="font-medium">{msg.text}</span>
                           }
