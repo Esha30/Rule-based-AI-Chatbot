@@ -23,3 +23,7 @@ backend/database/local_history.json
 .env
 .env.local
 .env.*.local
+
+# Screenshots
+axiom_chatbot_screenshot.png
+
