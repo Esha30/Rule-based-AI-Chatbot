@@ -633,7 +633,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] italic opacity-70 border-l-2 border-indigo-500 pl-4 py-1">When a specific rule isn't found, Axiom intelligently leverages the Google Gemini LLM to provide the most helpful response possible.</p>
+                <p className="text-[11px] italic opacity-70 border-l-2 border-indigo-500 pl-4 py-1">When a specific rule isn&apos;t found, Axiom intelligently leverages the Google Gemini LLM to provide the most helpful response possible.</p>
               </div>
               <button onClick={() => setShowInfo(false)} className="w-full py-4 rounded-2xl bg-slate-800 text-white font-black text-sm hover:bg-slate-700 transition-all">Understood</button>
             </motion.div>

@@ -21,6 +21,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.0.3",

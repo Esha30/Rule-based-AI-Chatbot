@@ -2,7 +2,7 @@
   "intents": [
     {
       "tag": "greeting",
-      "patterns": ["hi", "hello", "hey", "hola", "hy", "sup", "howdy", "greetings", "good morning", "good evening", "hi there", "is anyone there"],
+      "patterns": ["hi", "hello", "hey", "hola", "hy", "sup", "howdy", "greetings", "good morning", "good evening", "hi there", "hello there", "hello axiom", "is anyone there"],
       "responses": [
         "Hello! I'm **Axiom AI**, your intelligent rule-based assistant. How can I help you today?",
         "Hi there! Axiom AI is online and ready to assist. What's on your mind?",
