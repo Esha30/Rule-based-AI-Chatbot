@@ -82,12 +82,14 @@ export default function Home() {
   const [dbStatus, setDbStatus]     = useState("checking");
   const [isMobile, setIsMobile]     = useState(false);
   const bottomRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   /* ── Init ── */
   useEffect(() => {
-    let sid = localStorage.getItem("axiom_sid");
-    if (!sid) { sid = uuidv4(); localStorage.setItem("axiom_sid", sid); }
+    // Generate a fresh session ID on mount for a new, clean conversation
+    const sid = uuidv4();
     setSessionId(sid);
+    localStorage.setItem("axiom_sid", sid);
     if (localStorage.getItem("axiom_theme") === "light") setIsDark(false);
     
     const handleResize = () => {
@@ -105,7 +107,24 @@ export default function Home() {
     localStorage.setItem("axiom_theme", isDark ? "dark" : "light");
   }, [isDark]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Immediately snap to bottom so the first message is always visible
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+      // Then smooth-scroll after layout settles
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTo({
+            top: scrollContainerRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, isLoading]);
 
   /* ── API helpers ── */
   const fetchSessions = useCallback(async () => {
@@ -182,11 +201,11 @@ export default function Home() {
     content += `==========================================\n`;
     content += `End of Export - ${messages.length} message(s) exported`;
     
-    // Standard filename without complex characters
-    const filename = `Axiom_Export_${new Date().getTime()}.md`;
+    // Standard filename that opens automatically in Notepad on Windows
+    const filename = `Axiom_Export_${new Date().getTime()}.txt`;
     
-    // Create blob without BOM, as standard markdown
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    // Create blob as plain text so Windows opens it automatically
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     
     // Create a temporary link and trigger download
     const url = window.URL.createObjectURL(blob);
@@ -204,7 +223,7 @@ export default function Home() {
       window.URL.revokeObjectURL(url);
     }, 100);
     
-    setShowAlert("Exported! Check your downloads folder for '" + filename + "'.");
+    setShowAlert("Exported! The file '" + filename + "' will open automatically in Notepad.");
   };
 
   const startListening = () => {
@@ -223,6 +242,12 @@ export default function Home() {
     localStorage.setItem("axiom_sid", sid);
     setMessages([]);
     if (andFetch) fetchSessions();
+  };
+
+  const markAsTyped = (id) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, isNew: false } : m))
+    );
   };
 
   const sendMessage = async (e, override) => {
@@ -259,17 +284,55 @@ export default function Home() {
   const bot = isDark ? "bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl rounded-tl-none shadow-2xl" : "bg-slate-100/80 border border-slate-200 shadow-xl shadow-slate-200/30 text-slate-900 rounded-2xl rounded-tl-none";
   const card = isDark ? "bg-slate-900/50 border-slate-800 hover:border-indigo-500/40 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg";
 
+  /* ── Textbox / Input Box Render Helper (for ChatGPT dynamic centering/sliding effect) ── */
+  const renderInputBox = () => {
+    return (
+      <form onSubmit={sendMessage}>
+        <div className={`flex items-center rounded-3xl border p-2 transition-all shadow-xl focus-within:ring-4 focus-within:ring-indigo-500/10 ${inp}`}>
+          <button
+            type="button" onClick={startListening}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+              isListening ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/25" : "text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/5"
+            }`}
+          >
+            <FaMicrophone size={17} />
+          </button>
+
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask Axiom AI anything…"
+            className="flex-1 bg-transparent border-none py-4 px-4 focus:outline-none text-[15px] font-medium placeholder:text-slate-600"
+          />
+
+          <button
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
+              !input.trim() || isLoading
+                ? "bg-slate-700/30 text-slate-600 cursor-not-allowed"
+                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 hover:scale-105 active:scale-95"
+            }`}
+          >
+            <FaPaperPlane size={15} />
+          </button>
+        </div>
+      </form>
+    );
+  };
+
   /* ──────────────────────────  RENDER  ─────────────────────────────── */
   return (
-    <div className={`flex h-screen overflow-hidden font-sans transition-colors duration-500 ${bg}`}>
+    <div className={`flex h-screen max-h-screen w-screen max-w-screen overflow-hidden font-sans transition-colors duration-500 ${bg}`}>
 
       {/* ── Sidebar ── */}
       <motion.aside
         initial={false}
         animate={{ 
-          width: sidebarOpen ? 290 : 0, 
-          opacity: sidebarOpen ? 1 : 0,
-          x: mobileMenuOpen ? 0 : (isMobile ? -290 : 0)
+          width: isMobile ? 290 : (sidebarOpen ? 290 : 0), 
+          opacity: 1,
+          x: isMobile ? (mobileMenuOpen ? 0 : -290) : 0
         }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={`fixed lg:relative h-full border-r shrink-0 overflow-hidden flex flex-col z-40 ${sb}`}
@@ -327,12 +390,6 @@ export default function Home() {
 
           {/* Footer buttons */}
           <div className="mt-4 pt-4 border-t border-slate-800/30 space-y-1">
-            <button
-              onClick={() => { setIsDark(!isDark); setMobileMenuOpen(false); }}
-              className="flex items-center gap-3 w-full p-3 rounded-2xl hover:bg-slate-500/10 text-xs font-bold transition-colors"
-            >
-              {isDark ? <><FaSun className="text-yellow-400" /> Light Mode</> : <><FaMoon className="text-indigo-500" /> Dark Mode</>}
-            </button>
             <button 
               onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }}
               className="flex items-center gap-3 w-full p-3 rounded-2xl hover:bg-slate-500/10 text-xs font-bold transition-colors"
@@ -354,8 +411,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* ── Main Area ── */}
-      <main className="flex-1 flex flex-col relative overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden relative">
 
         {/* Ambient glow orbs */}
         <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-indigo-600/5 blur-[160px] rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
@@ -395,23 +451,17 @@ export default function Home() {
             >
               <FaInfoCircle size={15} />
             </button>
-            <div className={`w-px h-5 ${isDark ? "bg-slate-800" : "bg-slate-200"}`} />
-            <button
-              onClick={exportChat}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 bg-slate-800 text-white hover:bg-slate-700 shadow-md"
-            >
-              <FaDownload size={11} /> Export
-            </button>
+            {/* Export removed from header as it is now placed beautifully inline above the input dock */}
           </div>
         </header>
 
         {/* Chat / Empty state */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-12">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-12">
           <div className="max-w-4xl mx-auto min-h-full flex flex-col">
             {messages.length === 0 ? (
               /* ── Empty / Welcome ── */
               <div
-                className="flex-1 flex flex-col items-center justify-center text-center py-16 space-y-10 animate-in fade-in zoom-in duration-500"
+                className="flex-1 flex flex-col items-center justify-start text-center py-8 md:py-12 space-y-8 animate-in fade-in zoom-in duration-500"
               >
                   {/* Floating robot icon */}
                   <div className="relative">
@@ -431,6 +481,11 @@ export default function Home() {
                     </p>
                   </div>
 
+                  {/* Centered Input Box on Welcome Screen */}
+                  <div className="w-full max-w-xl mx-auto px-4">
+                    {renderInputBox()}
+                  </div>
+
                   {/* Suggestion cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
                     {SUGGESTED.map((q, i) => (
@@ -446,6 +501,17 @@ export default function Home() {
                         </div>
                       </button>
                     ))}
+                  </div>
+
+                  {/* Small bottom footer disclaimer inline on welcome screen */}
+                  <div className={`flex items-center justify-center gap-5 mt-2 opacity-30 text-[9px] font-black uppercase tracking-[0.2em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                    <span>NLP Core</span>
+                    <span className="w-1 h-1 rounded-full bg-current inline-block" />
+                    <span>MongoDB Atlas</span>
+                    <span className="w-1 h-1 rounded-full bg-current inline-block" />
+                    <span>Flask REST</span>
+                    <span className="w-1 h-1 rounded-full bg-current inline-block" />
+                    <span>Next.js 15</span>
                   </div>
               </div>
             ) : (
@@ -480,9 +546,7 @@ export default function Home() {
                             </div>
                           )}
                           {msg.role === "bot"
-                            ? msg.isNew
-                              ? <TypingEffect text={msg.text} onScroll={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })} />
-                              : <div className="prose dark:prose-invert max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown></div>
+                            ? <div className="prose dark:prose-invert max-w-none"><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown></div>
                             : <span className="font-medium">{msg.text}</span>
                           }
                         </div>
@@ -504,6 +568,28 @@ export default function Home() {
                     </motion.div>
                   ))}
 
+                  {/* Export conversation options beautifully inline above the input dock like ChatGPT */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex items-center justify-between gap-4 mt-8 mb-4 p-5 rounded-3xl border border-dashed ${
+                      isDark 
+                        ? 'border-indigo-500/20 bg-indigo-950/20 text-slate-300' 
+                        : 'border-indigo-200 bg-indigo-50/40 text-slate-700'
+                    } max-w-xl mx-auto backdrop-blur-md`}
+                  >
+                    <div className="flex-1">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-indigo-400">Save Conversation</h4>
+                      <p className="text-[11px] opacity-75 font-medium mt-0.5">Export this complete chat history as a plain text (.txt) file — opens automatically in Notepad.</p>
+                    </div>
+                    <button
+                      onClick={exportChat}
+                      className="flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 hover:scale-[1.02]"
+                    >
+                      <FaDownload size={12} /> Export as .txt
+                    </button>
+                  </motion.div>
+
                   {/* Typing indicator */}
                   {isLoading && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-5">
@@ -524,53 +610,32 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Input Dock */}
-        <div className={`border-t backdrop-blur-2xl z-10 p-6 md:px-12 md:py-6 ${ftr}`}>
-          <div className="max-w-3xl mx-auto">
-            <form onSubmit={sendMessage}>
-              <div className={`flex items-center rounded-3xl border p-2 transition-all shadow-xl focus-within:ring-4 focus-within:ring-indigo-500/10 ${inp}`}>
-                <button
-                  type="button" onClick={startListening}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
-                    isListening ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/25" : "text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/5"
-                  }`}
-                >
-                  <FaMicrophone size={17} />
-                </button>
+        {/* Input Dock - shown at bottom only when a chat is active */}
+        <AnimatePresence>
+          {messages.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className={`border-t backdrop-blur-2xl z-10 p-6 md:px-12 md:py-6 ${ftr}`}
+            >
+              <div className="max-w-3xl mx-auto">
+                {renderInputBox()}
 
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask Axiom AI anything…"
-                  className="flex-1 bg-transparent border-none py-4 px-4 focus:outline-none text-[15px] font-medium placeholder:text-slate-600"
-                />
-
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
-                    !input.trim() || isLoading
-                      ? "bg-slate-700/30 text-slate-600 cursor-not-allowed"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/30 hover:scale-105 active:scale-95"
-                  }`}
-                >
-                  <FaPaperPlane size={15} />
-                </button>
+                <div className={`flex items-center justify-center gap-5 mt-4 opacity-30 text-[9px] font-black uppercase tracking-[0.2em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                  <span>NLP Core</span>
+                  <span className="w-1 h-1 rounded-full bg-current inline-block" />
+                  <span>MongoDB Atlas</span>
+                  <span className="w-1 h-1 rounded-full bg-current inline-block" />
+                  <span>Flask REST</span>
+                  <span className="w-1 h-1 rounded-full bg-current inline-block" />
+                  <span>Next.js 15</span>
+                </div>
               </div>
-            </form>
-
-            <div className={`flex items-center justify-center gap-5 mt-4 opacity-30 text-[9px] font-black uppercase tracking-[0.2em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              <span>NLP Core</span>
-              <span className="w-1 h-1 rounded-full bg-current inline-block" />
-              <span>MongoDB Atlas</span>
-              <span className="w-1 h-1 rounded-full bg-current inline-block" />
-              <span>Flask REST</span>
-              <span className="w-1 h-1 rounded-full bg-current inline-block" />
-              <span>Next.js 15</span>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* ── Settings Modal ── */}

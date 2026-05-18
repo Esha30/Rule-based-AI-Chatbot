@@ -15,11 +15,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} h-screen max-h-screen overflow-hidden antialiased`} suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
-      <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>{children}</body>
+      <body className="h-screen max-h-screen overflow-hidden flex flex-col font-sans" suppressHydrationWarning>{children}</body>
     </html>
   );
 }
